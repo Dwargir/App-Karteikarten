@@ -1,0 +1,21 @@
+{
+  "name": "Semesterkartei",
+  "short_name": "Kartei",
+  "description": "Uni-Dokumente hochladen, KI-Karteikarten lernen, Übungsklausuren schreiben.",
+  "lang": "de",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#E8ECF1",
+  "theme_color": "#E8ECF1",
+  "icons": [
+    {"src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png"},
+    {"src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png"},
+    {"src": "icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"}
+  ],
+  "shortcuts": [
+    {"name": "Jetzt lernen", "url": "./?go=heute"},
+    {"name": "Dokument hochladen", "url": "./?go=upload"}
+  ]
+}

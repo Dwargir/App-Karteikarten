@@ -1,49 +1,65 @@
 # Semesterkartei
 
-Lern-App für die Uni: Dokumente hochladen, und Claude erstellt daraus automatisch Karteikarten, eine Zusammenfassung, Videovorschläge und Übungsklausuren. Die App fragt dich jeden Tag die Karten ab, die gerade fällig sind (Spaced Repetition).
+Lern-App für die Uni: Dokumente hochladen, und Claude erstellt daraus Karteikarten, Zusammenfassungen nach deinem eigenen Masterprompt, Mindmaps, Glossare und Übungsklausuren. Die App plant jeden Tag, was du lernst, und merkt sich mit dem FSRS-Algorithmus, wie gut du jede Karte kannst.
 
 ## Funktionen
 
-- **Upload:** PDF, Word (.docx), Text oder Fotos deiner Mitschrift. Gescannte PDFs liest Claude direkt.
-- **Karteikarten:** 12–30 Karten pro Dokument, dazu eigene Karten und „10 weitere erstellen“.
-- **Tägliche Abfrage:** Sechs Stufen. Gewusste Karten kommen nach 1, 3, 7, 16 und 35 Tagen wieder.
-- **Zusammenfassung und Schlagworte** zu jedem Dokument.
-- **Erklärvideos:** passende YouTube-Suchen zu den Kernthemen.
-- **Übungsklausuren:** Multiple Choice und offene Aufgaben. Offene Antworten bewertet Claude mit Punkten und Feedback.
-- **Fächer mit Prüfungstermin:** Countdown und Empfehlung, wie viel du pro Tag lernen solltest.
-- **Statistik:** Lernserie, Trefferquote, Verlauf über 14 Tage, Fortschritt pro Fach.
-- **Backup:** Export und Import als JSON-Datei.
+**Lernen**
+- Tägliche Abfrage mit **FSRS** (dem Algorithmus aus Anki): Abstände passen sich deinem Gedächtnis an, Zielsicherheit einstellbar.
+- **Lernplan bis zur Prüfung:** Mit Prüfungstermin verteilt die App die neuen Karten auf die verbleibenden Tage, die letzten zwei Tage sind reine Wiederholung.
+- **Kartentypen:** Frage/Antwort, Lückentext, Formeln (LaTeX), Abbildungen aus den Folien.
+- **„Erklär mir das“:** Chat mit Claude zu jeder Karte, mit Nachfragen.
+- **Schwächen-Analyse:** Claude findet die Lücken hinter oft falsch beantworteten Karten und erstellt gezielte Übungskarten.
+
+**Aus den Unterlagen**
+- Upload von PDF, Word, Text oder Fotos. Gescannte PDFs liest Claude direkt.
+- **Masterprompts:** eigene Anweisungen für Zusammenfassungen speichern und zwischen ihnen wechseln. Pro Dokument mehrere Versionen.
+- Mindmap pro Dokument, Glossar pro Fach, **Klausur-Lernzettel** aus mehreren Dokumenten.
+- Drucken oder als PDF speichern.
+- Erklärvideos: YouTube-Suche oder mit API-Schlüssel direkt eingebettet.
+
+**Prüfung und Gruppe**
+- Übungsklausuren mit Multiple Choice und offenen Aufgaben, die Claude bewertet.
+- **Quiz-Duell** mit Kommilitonen über einen 6-stelligen Code.
+- Kartenstapel **per Link teilen**.
+
+**App**
+- Installierbar als App (PWA) auf iPhone und Android, offline lernbar.
+- Tägliche Erinnerung als Kalendertermin.
+- **Sync** zwischen Geräten über dein Konto. Backup-Export und -Import.
 
 ## Einrichtung
 
-1. App öffnen (GitHub Pages, siehe unten).
-2. Oben rechts auf das Zahnrad tippen und einen **Anthropic-API-Schlüssel** eintragen. Den Schlüssel bekommst du unter <https://console.anthropic.com/settings/keys>. Die Kosten laufen über dein API-Guthaben, nicht über ein Claude-Abo.
-3. Dokument hochladen und lernen.
-
-## Datenschutz
-
-- Alle Fächer, Dokumente und Karten liegen nur in deinem Browser (IndexedDB). Es gibt keinen Server.
-- Der API-Schlüssel wird im `localStorage` deines Browsers gespeichert. Nutze die App deshalb nur auf eigenen Geräten.
-- Hochgeladene Inhalte gehen direkt aus deinem Browser an die Anthropic-API.
-- Auf ein anderes Gerät kommen deine Daten über **Einstellungen → Backup herunterladen / einspielen**.
+1. **GitHub Pages:** Repository → Settings → Pages → Branch `main`, Ordner `/ (root)`. Die App läuft dann unter `https://<name>.github.io/semesterkartei/`.
+2. **Supabase** (Sync, Teilen, Duell, geschützter API-Schlüssel): Anleitung in [`docs/SUPABASE.md`](docs/SUPABASE.md).
+3. **Ohne Supabase** geht es auch: In den Einstellungen einen eigenen Anthropic-API-Schlüssel eintragen. Dann liegen die Daten nur im Browser, Teilen per Link und Duell sind aus.
 
 ## Lokal starten
 
-Die App ist eine statische Seite ohne Build-Schritt:
+Statische Seite ohne Build-Schritt:
 
 ```bash
 python3 -m http.server 8000
-# dann http://localhost:8000 öffnen
+# http://localhost:8000
 ```
-
-## Veröffentlichen mit GitHub Pages
-
-Repository → **Settings → Pages** → Source: „Deploy from a branch“, Branch `main`, Ordner `/ (root)`. Nach ein bis zwei Minuten ist die App unter `https://<dein-name>.github.io/semesterkartei/` erreichbar.
 
 ## Aufbau
 
 | Datei | Inhalt |
 | --- | --- |
-| `index.html` | Grundgerüst, Navigation, Bibliotheken (pdf.js, mammoth) |
-| `style.css` | Design (helles und dunkles Theme) |
-| `app.js` | Gesamte Logik: Speicher, Claude-Aufrufe, Ansichten |
+| `index.html` | Grundgerüst, Navigation, Bibliotheken |
+| `config.js` | Supabase-URL und Anon-Key |
+| `style.css` | Design, helles und dunkles Theme, Druckansicht |
+| `js/core.js` | Helfer, Zustand, IndexedDB, Sync, Claude-Aufrufe, FSRS |
+| `js/features.js` | Lernplan, Generierung, Abfrage, Klausur, Chat, Glossar, Mindmap, Lernzettel, Teilen, Duell |
+| `js/views.js` | Alle Ansichten |
+| `js/main.js` | Rendern, Ereignisse, Start |
+| `sw.js`, `manifest.webmanifest`, `icons/` | PWA |
+| `supabase/schema.sql` | Tabellen und Zugriffsregeln |
+| `supabase/functions/claude/` | Edge Function als Claude-Proxy |
+
+## Datenschutz
+
+- Ohne Konto liegen alle Daten nur in deinem Browser. Mit Konto zusätzlich in deinem Supabase-Projekt, geschützt durch Row Level Security.
+- Hochgeladene Inhalte gehen an die Anthropic-API (direkt oder über deine Edge Function).
+- Ein eigener API-Schlüssel wird im `localStorage` gespeichert. Mit der Server-Variante liegt er nur auf dem Server.
