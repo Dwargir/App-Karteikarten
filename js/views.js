@@ -14,6 +14,24 @@ function storeNotice(){ return S.store === "memory" ? '<div class="notice">Dein 
 function aiNotice(){
   return aiReady() ? "" : '<div class="notice">Damit Claude Karten, Zusammenfassungen und Klausuren erstellen kann, richte zuerst den Zugang ein. <button class="link" data-act="nav" data-v="settings">Zu den Einstellungen →</button></div>';
 }
+function cardEditForm(docId, c){
+  return `<form id="editCardForm" data-doc="${esc(docId)}" data-card="${esc(c.id)}" class="panel stack">
+    <h3>Karte bearbeiten</h3>
+    <label class="f" for="ecKind">Art<select id="ecKind"><option value="basic" ${sel(c.kind !== "cloze")}>Frage und Antwort</option><option value="cloze" ${sel(c.kind === "cloze")}>Lückentext</option></select></label>
+    <label class="f" for="ecQ">Frage oder Lückentext<textarea id="ecQ" required maxlength="600" style="min-height:70px">${esc(c.q)}</textarea></label>
+    <label class="f" for="ecA">Antwort / Zusatzinfo<textarea id="ecA" maxlength="1500" style="min-height:80px">${esc(c.a)}</textarea></label>
+    <div class="row"><button class="primary" type="submit">Speichern</button><button type="button" data-act="cancelEdit">Abbrechen</button></div></form>`;
+}
+function searchResults(q){
+  if (String(q || "").trim().length < 2) return "";
+  const hits = searchCards(q);
+  if (!hits.length) return '<p class="muted small">Keine Karte gefunden.</p>';
+  return `<p class="muted small">${hits.length === 50 ? "Die ersten 50 Treffer" : hits.length + (hits.length === 1 ? " Treffer" : " Treffer")}</p><div class="list">${hits.map(x => `<button class="item" data-act="openDoc" data-v="${esc(x.docId)}"><span class="grow"><span class="t">${cardListQ(x.c)}</span><br><span class="s">${esc(x.c.a.slice(0, 140))}${x.c.a.length > 140 ? "…" : ""}</span><br><span class="s">${esc(S.docs[x.docId]?.title || "")}</span></span></button>`).join("")}</div>`;
+}
+function examItem(x){
+  const inner = `<span class="grow"><span class="t">${esc(x.label)}</span><br><span class="s">${fmtDate(x.date)}${x.detail && S.examDetails[x.id] ? " · Aufgaben ansehen" : ""}</span></span><span class="pill num">${x.pct} %</span>`;
+  return x.detail && S.examDetails[x.id] ? `<button class="item" data-act="examOpen" data-v="${esc(x.id)}">${inner}</button>` : `<div class="item">${inner}</div>`;
+}
 function docItem(id, d){
   const s = subj(d.subjectId), due = arr(d.cards).filter(isDue).length, fresh = arr(d.cards).filter(isNew).length;
   return `<button class="item" data-act="openDoc" data-v="${esc(id)}">${subjDot(s)}<span class="grow"><span class="t">${esc(d.title)}</span><br><span class="s">${esc(s?.name || "Ohne Fach")} · ${arr(d.cards).length} Karten${fresh ? " · " + fresh + " neu" : ""} · ${fmtDate(d.createdAt)}</span></span>${due ? `<span class="pill due num">${due} fällig</span>` : ""}</button>`;
@@ -61,6 +79,7 @@ function vFaecher(){
   if (S.sel.subject && subj(S.sel.subject)) return vSubject(S.sel.subject);
   const subs = S.profile.subjects;
   return storeNotice() + `<div><p class="eyebrow">Semester</p><h1>Deine Fächer</h1></div>
+    ${Object.keys(S.docs).length ? `<div class="panel stack"><label class="f" for="cardQ">Karten durchsuchen<input id="cardQ" type="search" placeholder="Begriff, Formel, Frage…" value="${esc(S.cardQ)}" autocomplete="off"></label><div id="searchRes" class="stack">${searchResults(S.cardQ)}</div></div>` : ""}
     ${subs.length ? `<div class="list">${subs.map(s => {
       const docs = docsOf(s.id), cards = allCards((id, d) => d.subjectId === s.id), due = cards.filter(x => isDue(x.c)).length;
       return `<button class="item" data-act="openSubj" data-v="${esc(s.id)}">${subjDot(s)}<span class="grow"><span class="t">${esc(s.name)}</span><br><span class="s">${docs.length} ${docs.length === 1 ? "Dokument" : "Dokumente"} · ${cards.length} Karten${examActive(s) ? " · Prüfung in " + daysUntil(s.examDate) + " T" : ""}</span></span>${due ? `<span class="pill due num">${due} fällig</span>` : ""}</button>`;
@@ -126,7 +145,8 @@ function vDoc(id){
   const sumBusy = S.busy.sum && S.busy.sum.docId === id;
   const vids = arr(d.videoResults).length ? d.videoResults : null;
   return `<button class="ghost back noprint" data-act="openSubj" data-v="${esc(d.subjectId)}">← ${esc(s?.name || "Fach")}</button>
-    <div class="stack" style="gap:6px"><p class="eyebrow">${esc(d.fileName)} · ${fmtDate(d.createdAt)}</p><h1>${esc(d.title)}</h1></div>
+    <div class="stack" style="gap:6px"><p class="eyebrow">${esc(d.fileName)} · ${fmtDate(d.createdAt)}${d.parts > 1 ? " · " + d.parts + " Teile" : ""}</p><h1>${esc(d.title)}</h1></div>
+    ${arr(d.warnings).length ? `<div class="notice" role="status">${d.warnings.map(esc).join("<br>")}</div>` : ""}
     <div class="row noprint"><button class="primary" data-act="review" data-v="d:${esc(id)}" ${due || fresh ? "" : "disabled"}>Lernen (${due + Math.min(fresh, 15)})</button><button data-act="reviewAll" data-v="d:${esc(id)}">Alle ${cards.length} üben</button><button data-act="examFrom" data-v="d:${esc(id)}">Übungsklausur</button><button data-act="share" data-v="doc|${esc(id)}">${S.busy.share === id ? spin : ""}Teilen</button><button data-act="print">Drucken / PDF</button></div>
     ${sharePanel(id)}
 
@@ -148,7 +168,7 @@ function vDoc(id){
     </section>` : ""}
 
     <section class="stack"><div class="row between"><h2>Karteikarten <span class="muted num" style="font-weight:400">${cards.length}</span></h2>${d.text ? `<button class="ghost noprint" data-act="more" data-v="${esc(id)}" ${S.busy.more ? "disabled" : ""}>${S.busy.more === id ? spin + " Erstelle…" : "+ 10 weitere"}</button>` : ""}</div>
-    <div class="list">${cards.map(c => `<div class="cardrow"><span class="cq">${c.kind === "cloze" ? '<span class="kind">Lücke</span> ' : ""}${cardListQ(c)}</span><span>${lvl(c)}</span><span class="ca">${esc(c.a)}${c.img ? `<img data-img="${esc(c.img)}" alt="Abbildung aus dem Dokument" hidden class="cimg">` : ""}</span><span class="row nowrap noprint" style="gap:0;align-self:start"><button class="ghost mini" data-act="explain" data-v="${esc(id)}|${esc(c.id)}" aria-label="Erklären">?</button><button class="ghost mini" data-act="delCard" data-v="${esc(id)}|${esc(c.id)}" aria-label="Karte löschen">×</button></span></div>`).join("")}</div>
+    <div class="list">${cards.map(c => S.cardEdit === id + "|" + c.id ? `<div class="cardrow editing">${cardEditForm(id, c)}</div>` : `<div class="cardrow"><span class="cq">${c.kind === "cloze" ? '<span class="kind">Lücke</span> ' : ""}${cardListQ(c)}</span><span>${lvl(c)}</span><span class="ca">${esc(c.a)}${c.img ? `<img data-img="${esc(c.img)}" alt="Abbildung aus dem Dokument" hidden class="cimg">` : ""}</span><span class="row nowrap noprint" style="gap:0;align-self:start"><button class="ghost mini" data-act="explain" data-v="${esc(id)}|${esc(c.id)}" aria-label="Erklären">?</button><button class="ghost mini" data-act="editCard" data-v="${esc(id)}|${esc(c.id)}" aria-label="Karte bearbeiten">✎</button><button class="ghost mini" data-act="delCard" data-v="${esc(id)}|${esc(c.id)}" aria-label="Karte löschen">×</button></span></div>`).join("")}</div>
     <form id="addCardForm" data-doc="${esc(id)}" class="panel stack noprint"><h3>Eigene Karte hinzufügen</h3>
       <label class="f" for="ncKind">Art<select id="ncKind"><option value="basic">Frage und Antwort</option><option value="cloze">Lückentext</option></select></label>
       <label class="f" for="ncQ">Frage oder Lückentext<input id="ncQ" required maxlength="600" placeholder="Lücken so: Die {{Glykolyse}} läuft im Cytoplasma."></label>
@@ -170,16 +190,16 @@ function vUpload(){
     ${aiNotice()}
     ${U.error ? `<div class="notice bad" role="alert">${esc(U.error)}</div>` : ""}
     <label class="drop" id="drop" for="fileIn">
-      <input type="file" id="fileIn" multiple accept=".pdf,.docx,.txt,.md,.tex,image/*">
+      <input type="file" id="fileIn" multiple accept=".pdf,.pptx,.docx,.txt,.md,.tex,image/*">
       <h3>${U.files.length ? esc(U.files.map(f => f.name).join(", ")) : "Datei auswählen"}</h3>
-      <span class="muted small">${U.files.length ? "Tippen, um andere Dateien zu wählen" : "PDF, Word, Text oder Fotos deiner Mitschrift"}</span>
+      <span class="muted small">${U.files.length ? "Tippen, um andere Dateien zu wählen" : "PDF, PowerPoint, Word, Text oder Fotos deiner Mitschrift"}</span>
     </label>
     <label class="f" for="pasteIn">Oder Text einfügen<textarea id="pasteIn" placeholder="Vorlesungsnotizen, Abschnitt aus dem Skript…">${esc(U.text)}</textarea></label>
     <label class="f" for="subjSel">Fach<select id="subjSel">${subs.map(x => `<option value="${esc(x.id)}" ${sel(x.id === s)}>${esc(x.name)}</option>`).join("")}<option value="__new" ${sel(showNew)}>+ Neues Fach…</option></select></label>
     ${showNew ? `<label class="f" for="newSubjIn">Name des neuen Fachs<input id="newSubjIn" value="${esc(U.newSubject)}" placeholder="z. B. Organische Chemie" maxlength="60"></label>` : ""}
     <label class="f" for="upPrompt">Masterprompt für die Zusammenfassung<select id="upPrompt">${S.profile.prompts.map(p => `<option value="${esc(p.id)}" ${sel(p.id === pid)}>${esc(p.name)}</option>`).join("")}</select></label>
     <button class="primary block" data-act="gen">Karteikarten erstellen</button>
-    <p class="muted small">Du bekommst Frage- und Lückentext-Karten, Abbildungen aus den Folien, eine Zusammenfassung und Videovorschläge. PowerPoint bitte vorher als PDF exportieren.</p>`;
+    <p class="muted small">Du bekommst Frage- und Lückentext-Karten, Abbildungen aus den Folien, eine Zusammenfassung und Videovorschläge. Lange Skripte verarbeitet die App automatisch in mehreren Teilen (bis etwa 200 Seiten Fließtext).</p>`;
 }
 
 /* ---------- Abfrage ---------- */
@@ -190,12 +210,13 @@ function vReview(){
     const more = planTotals();
     return `<div><p class="eyebrow">Geschafft</p><h1>${R.done} ${R.done === 1 ? "Karte" : "Karten"} gelernt</h1></div>
       <div class="statrow"><div class="stat"><b>${R.counts[0]}</b><span>Nochmal</span></div><div class="stat"><b>${R.counts[1] + R.counts[2]}</b><span>Gewusst</span></div><div class="stat"><b>${R.counts[3]}</b><span>Leicht</span></div></div>
-      <div class="row"><button class="primary" data-act="endReview">Zur Übersicht</button>${more.due + more.fresh ? `<button data-act="review" data-v="all">Weiter lernen (${more.due + more.fresh})</button>` : ""}</div>`;
+      <div class="row"><button class="primary" data-act="endReview">Zur Übersicht</button>${arr(R.undo).length ? '<button class="ghost" data-act="undo">↶ Letzte Bewertung zurücknehmen</button>' : ""}${more.due + more.fresh ? `<button data-act="review" data-v="all">Weiter lernen (${more.due + more.fresh})</button>` : ""}</div>`;
   }
   const {d, c} = cur, s = subj(d.subjectId);
   const pct = Math.round(R.done / R.total * 100), lbl = ["Nochmal","Schwer","Gut","Leicht"];
   const tag = isNew(c) ? '<span class="pill">neu</span>' : lvl(c);
-  return `<div class="row between"><button class="ghost back" data-act="endReview">← Beenden</button><span class="eyebrow num">${R.done} / ${R.total}</span></div>
+  const editing = S.cardEdit === cur.it.docId + "|" + c.id;
+  return `<div class="row between"><button class="ghost back" data-act="endReview">← Beenden</button><span class="row nowrap">${arr(R.undo).length ? '<button class="ghost mini" data-act="undo" title="Taste Z">↶ Rückgängig</button>' : ""}<span class="eyebrow num">${R.done} / ${R.total}</span></span></div>
     <div class="progress"><i style="width:${pct}%"></i></div>
     <div class="review">
       <div class="paper fc" data-act="reveal" role="button" tabindex="0" aria-live="polite">
@@ -203,8 +224,8 @@ function vReview(){
         <span class="qtext">${c.kind === "cloze" ? clozeHtml(c.q, R.shown) : esc(c.q)}</span>
         ${R.shown ? `${c.a ? `<span class="atext">${esc(c.a)}</span>` : ""}${c.img ? `<img data-img="${esc(c.img)}" alt="Abbildung aus dem Dokument" hidden class="cimg">` : ""}` : `<span class="hint">${c.kind === "cloze" ? "Was gehört in die Lücken? Tippe auf die Karte." : "Überleg dir die Antwort, dann tippe auf die Karte."}</span>`}
       </div>
-      ${R.shown ? `<div class="grades">${[0,1,2,3].map(g => { const n = FSRS.next(c, g + 1); return `<button class="g${g}" data-act="grade" data-v="${g}">${lbl[g]}<small>${fmtDays(n.days)}</small></button>`; }).join("")}</div>
-        <button class="ghost" data-act="explain" data-v="${esc(cur.it.docId)}|${esc(c.id)}">Erklär mir das</button>` : `<button class="primary block" data-act="reveal">Antwort zeigen</button>`}
+      ${editing ? cardEditForm(cur.it.docId, c) : R.shown ? `<div class="grades">${[0,1,2,3].map(g => { const n = FSRS.next(c, g + 1); return `<button class="g${g}" data-act="grade" data-v="${g}">${lbl[g]}<small>${fmtDays(n.days)}</small></button>`; }).join("")}</div>
+        <div class="row"><button class="ghost" data-act="explain" data-v="${esc(cur.it.docId)}|${esc(c.id)}">Erklär mir das</button><button class="ghost" data-act="editCard" data-v="${esc(cur.it.docId)}|${esc(c.id)}">Karte bearbeiten</button></div>` : `<button class="primary block" data-act="reveal">Antwort zeigen</button>`}
     </div>`;
 }
 
@@ -233,12 +254,12 @@ function vExam(tabs){
       <button class="primary" data-act="examStart">Klausur erstellen</button>
       <p class="muted small">Etwa 60 % Multiple Choice, 40 % offene Aufgaben. Offene Antworten bewertet Claude mit Punkten und Feedback.</p>
     </div>
-    ${arr(S.profile.exams).length ? `<section class="stack"><h2>Letzte Ergebnisse</h2><div class="list">${S.profile.exams.slice(0, 6).map(x => `<div class="item"><span class="grow"><span class="t">${esc(x.label)}</span><br><span class="s">${fmtDate(x.date)}</span></span><span class="pill num">${x.pct} %</span></div>`).join("")}</div></section>` : ""}`;
+    ${arr(S.profile.exams).length ? `<section class="stack"><h2>Letzte Ergebnisse</h2><div class="list">${S.profile.exams.slice(0, 8).map(examItem).join("")}</div></section>` : ""}`;
   if (E.stage === "loading" || E.stage === "grading") return `<div><p class="eyebrow">${esc(scopeLabel(E.scope))}</p><h1>${E.stage === "loading" ? "Klausur wird erstellt" : "Antworten werden korrigiert"}</h1></div>
     <div class="paper hero"><div class="row" style="height:20px"><span class="eyebrow">Bitte warten</span></div><div class="row nowrap" style="margin-top:14px">${spin}<span>${E.stage === "loading" ? "Claude stellt " + E.n + " Aufgaben aus deinem Material zusammen…" : "Claude vergleicht deine Antworten mit den Musterlösungen…"}</span></div><button data-act="examStop">Abbrechen</button></div>`;
   const done = E.stage === "done", max = E.questions.reduce((s, q) => s + q.points, 0);
   return `<div class="row between"><button class="ghost back" data-act="examNew">← Neue Klausur</button><span class="eyebrow">${esc(scopeLabel(E.scope))}</span></div>
-    ${done ? `<div class="paper hero"><div class="row" style="height:20px"><span class="eyebrow">Ergebnis</span></div><div class="row between" style="align-items:flex-end;margin-top:14px"><div><div class="score num">${E.pct} %</div><p class="muted num">${E.results.reduce((s, r) => s + r.score, 0).toLocaleString("de-DE")} von ${max} Punkten</p></div><span class="pill ${E.pct >= 50 ? "" : "due"}">${E.pct >= 85 ? "Sehr gut" : E.pct >= 65 ? "Gut" : E.pct >= 50 ? "Bestanden" : "Noch üben"}</span></div></div>` : `<h1>${E.questions.length} Aufgaben</h1>`}
+    ${done ? `<div class="paper hero"><div class="row" style="height:20px"><span class="eyebrow">${E.past ? "Ergebnis vom " + fmtDate(E.past) : "Ergebnis"}</span></div><div class="row between" style="align-items:flex-end;margin-top:14px"><div><div class="score num">${E.pct} %</div><p class="muted num">${E.results.reduce((s, r) => s + r.score, 0).toLocaleString("de-DE")} von ${max} Punkten</p></div><span class="pill ${E.pct >= 50 ? "" : "due"}">${E.pct >= 85 ? "Sehr gut" : E.pct >= 65 ? "Gut" : E.pct >= 50 ? "Bestanden" : "Noch üben"}</span></div></div>` : `<h1>${E.questions.length} Aufgaben</h1>`}
     <div class="list">${E.questions.map((q, i) => {
       const r = done ? E.results[i] : null;
       const head = `<div class="row between nowrap" style="align-items:flex-start"><b style="min-width:0;overflow-wrap:anywhere">${i + 1}. ${esc(q.q)}</b><span class="pill num">${done ? r.score.toLocaleString("de-DE") + "/" : ""}${q.points} P</span></div>`;
@@ -317,7 +338,7 @@ function vStats(){
       return `<button class="plain stack" style="gap:4px" data-act="openSubj" data-v="${esc(s.id)}"><span class="row between nowrap"><span class="row nowrap" style="gap:8px;min-width:0">${subjDot(s)}<span style="overflow-wrap:anywhere">${esc(s.name)}</span></span><span class="num muted" style="white-space:nowrap">${m} / ${cs.length} sicher</span></span><span class="meter" style="--c:var(--s${s.color})"><i style="width:${cs.length ? m / cs.length * 100 : 0}%"></i></span></button>`;
     }).join("")}</section>` : ""}
     ${weak.length ? `<section class="stack"><div class="row between"><h2>Häufig falsch</h2><button class="ghost" data-act="reviewWeak" data-v="all">Üben (${st.weak})</button></div><div class="list">${weak.map(x => `<button class="item" data-act="openDoc" data-v="${esc(x.docId)}"><span class="grow"><span class="t">${cardListQ(x.c)}</span><br><span class="s">${esc(S.docs[x.docId].title)}</span></span><span class="pill due num">${x.c.lapses || 0}× falsch</span></button>`).join("")}</div><p class="muted small">Im jeweiligen Fach findest du die Schwächen-Analyse von Claude.</p></section>` : ""}
-    ${arr(S.profile.exams).length ? `<section class="stack"><h2>Übungsklausuren</h2><div class="list">${S.profile.exams.slice(0, 8).map(x => `<div class="item"><span class="grow"><span class="t">${esc(x.label)}</span><br><span class="s">${fmtDate(x.date)}</span></span><span class="pill num">${x.pct} %</span></div>`).join("")}</div></section>` : ""}`;
+    ${arr(S.profile.exams).length ? `<section class="stack"><h2>Übungsklausuren</h2><div class="list">${S.profile.exams.slice(0, 8).map(examItem).join("")}</div></section>` : ""}`;
 }
 
 /* ---------- Einstellungen ---------- */
@@ -332,6 +353,13 @@ function vPrompts(){
       <div class="row"><button class="primary" type="submit">Speichern</button><button type="button" data-act="editPrompt" data-v="">Abbrechen</button>${ed.id && P.prompts.length > 1 ? `<button type="button" class="danger" data-act="delPrompt" data-v="${esc(ed.id)}">Löschen</button>` : ""}</div></form>`
       : `<button data-act="editPrompt" data-v="new">+ Neuer Masterprompt</button>`}
   </section>`;
+}
+function fsrsPanel(){
+  const u = fsrsUsable(), info = S.profile.prefs.fsrsInfo;
+  return `<div class="stack" style="gap:8px"><b>Abstände an dein Gedächtnis anpassen</b>
+    <p class="muted small">FSRS rechnet zunächst mit Durchschnittswerten. Ab 200 Wiederholungen mit Verlauf passt die App die Werte an, wie schnell du tatsächlich vergisst. Nutzbar bisher: <span class="num">${u}</span>.</p>
+    ${info ? `<p class="small">Angepasst am ${fmtDate(info.date)} mit ${info.n} Wiederholungen. Vorhersagefehler: ${info.before.toFixed(3)} → ${info.after.toFixed(3)} (kleiner ist besser).</p>` : ""}
+    <div class="row">${S.busy.fsrs ? `<span class="row nowrap">${spin}<span id="fsrsProg">Rechne…</span></span>` : `<button data-act="fsrsOpt" ${u >= 200 ? "" : "disabled"}>${info ? "Neu anpassen" : "Jetzt anpassen"}</button>`}${info && !S.busy.fsrs ? '<button class="ghost" data-act="fsrsReset">Standardwerte</button>' : ""}</div></div>`;
 }
 function vSettings(){
   const k = settings.key, src = aiSource(), conf = S.confirm === "wipe", pr = S.profile.prefs, A = S.auth;
@@ -359,6 +387,7 @@ function vSettings(){
     <section class="panel stack"><h3>Lernen</h3>
       <label class="f" for="newPerDay">Neue Karten pro Tag (Fächer ohne Prüfungstermin)<input id="newPerDay" type="number" min="0" max="200" value="${pr.newPerDay}"></label>
       <label class="f" for="retention">Ziel: Wie sicher sollst du dich erinnern?<select id="retention">${[[0.85,"85 % (weniger Wiederholungen)"],[0.9,"90 % (empfohlen)"],[0.95,"95 % (mehr Wiederholungen)"]].map(([v, l]) => `<option value="${v}" ${sel(Math.abs(pr.retention - v) < .001)}>${l}</option>`).join("")}</select></label>
+      ${fsrsPanel()}
     </section>
     <section class="panel stack"><h3>Tägliche Erinnerung</h3>
       <p class="muted small">Legt einen täglichen Termin mit Hinweis in deinem Kalender an (iPhone, Android, Outlook, Google).</p>
@@ -373,7 +402,7 @@ function vSettings(){
       ${S.installPrompt ? '<button class="primary" data-act="install">Jetzt installieren</button>' : ""}
     </section>
     <section class="panel stack"><h3>Daten</h3>
-      <p class="muted small">${Sync.uid ? "Deine Karten werden mit deinem Konto synchronisiert. Abbildungen aus Folien bleiben auf dem jeweiligen Gerät." : "Deine Karten liegen nur in diesem Browser. Sichere sie regelmäßig."}</p>
+      <p class="muted small">${Sync.uid ? "Deine Karten werden mit deinem Konto synchronisiert. Abbildungen werden mit synchronisiert." : "Deine Karten liegen nur in diesem Browser. Sichere sie regelmäßig."}</p>
       <div class="row"><button data-act="export">Backup herunterladen</button><label class="btn" for="importIn">Backup einspielen<input type="file" id="importIn" accept="application/json,.json" hidden></label></div>
       <div class="row">${conf ? `<span>Wirklich alle Fächer und Karten löschen${Sync.uid ? ", auch im Konto" : ""}?</span><button class="danger" data-act="wipe">Ja, alles löschen</button><button data-act="cancel">Abbrechen</button>` : '<button class="danger" data-act="confirm" data-v="wipe">Alle Daten löschen</button>'}</div>
     </section>`;
@@ -391,7 +420,7 @@ function vImport(){
     <div class="list">${docs.map(d => `<div class="item"><span class="grow"><span class="t">${esc(d.title)}</span><br><span class="s">${arr(d.cards).length} Karten</span></span></div>`).join("")}</div>
     <div class="panel stack"><label class="f" for="impSubj">In welches Fach?<select id="impSubj">${subs.map(s => `<option value="${esc(s.id)}" ${sel(I.subjectId === s.id)}>${esc(s.name)}</option>`).join("")}<option value="__new" ${sel(I.subjectId === "__new")}>+ Neues Fach…</option></select></label>
       ${I.subjectId === "__new" ? `<label class="f" for="impNew">Name<input id="impNew" maxlength="60" value="${esc(I.newSubject)}"></label>` : ""}
-      <button class="primary" data-act="importShare">In meine Kartei übernehmen</button><button class="ghost" data-act="cancelImport">Abbrechen</button></div>`;
+      <button class="primary" data-act="importShare" ${I.busy ? "disabled" : ""}>${I.busy ? spin + " Übernehme…" : "In meine Kartei übernehmen"}</button><button class="ghost" data-act="cancelImport">Abbrechen</button></div>`;
 }
 
 /* ---------- Erklär-Chat (Overlay) ---------- */

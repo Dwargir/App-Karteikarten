@@ -74,3 +74,45 @@ create policy "players: lesen" on public.duel_players for select to authenticate
 create policy "players: eigener Eintrag" on public.duel_players for insert to authenticated with check (user_id = auth.uid());
 create policy "players: eigener Eintrag ändern" on public.duel_players for update to authenticated
   using (user_id = auth.uid() and finished = false) with check (user_id = auth.uid());
+
+-- ---------- Tageslimit für die Claude-Funktion ----------
+create table if not exists public.usage (
+  user_id  uuid not null references auth.users on delete cascade,
+  day      date not null default current_date,
+  requests int  not null default 0,
+  primary key (user_id, day)
+);
+alter table public.usage enable row level security;
+drop policy if exists "usage: eigene lesen" on public.usage;
+create policy "usage: eigene lesen" on public.usage for select to authenticated using (user_id = auth.uid());
+
+-- Zählt eine Anfrage und meldet, ob das Limit noch eingehalten ist. Nur die Edge Function (service_role) darf das aufrufen.
+create or replace function public.use_quota(p_user uuid, p_limit int) returns boolean
+language plpgsql security definer set search_path = public as $$
+declare n int;
+begin
+  insert into public.usage as u (user_id, day, requests) values (p_user, current_date, 1)
+  on conflict (user_id, day) do update set requests = u.requests + 1
+  returning requests into n;
+  return n <= p_limit;
+end $$;
+revoke all on function public.use_quota(uuid, int) from public, anon, authenticated;
+grant execute on function public.use_quota(uuid, int) to service_role;
+
+-- ---------- Abbildungen (Supabase Storage) ----------
+-- "img": privat, jede Person nur im eigenen Ordner <user-id>/...
+-- "share-img": öffentlich lesbar über den Link (für geteilte Stapel), schreiben nur in den eigenen Ordner
+insert into storage.buckets (id, name, public) values ('img', 'img', false) on conflict (id) do nothing;
+insert into storage.buckets (id, name, public) values ('share-img', 'share-img', true) on conflict (id) do nothing;
+
+drop policy if exists "img: eigene Bilder" on storage.objects;
+create policy "img: eigene Bilder" on storage.objects for all to authenticated
+  using (bucket_id = 'img' and (storage.foldername(name))[1] = auth.uid()::text)
+  with check (bucket_id = 'img' and (storage.foldername(name))[1] = auth.uid()::text);
+
+drop policy if exists "share-img: hochladen" on storage.objects;
+drop policy if exists "share-img: löschen" on storage.objects;
+create policy "share-img: hochladen" on storage.objects for insert to authenticated
+  with check (bucket_id = 'share-img' and (storage.foldername(name))[1] = auth.uid()::text);
+create policy "share-img: löschen" on storage.objects for delete to authenticated
+  using (bucket_id = 'share-img' and (storage.foldername(name))[1] = auth.uid()::text);

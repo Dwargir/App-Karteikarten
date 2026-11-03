@@ -168,6 +168,8 @@ mark.gap.on{background:none;color:var(--accent);font-weight:700;border-bottom:2p
 .fc{position:relative}
 .fc.static{cursor:default;min-height:180px}
 .cardrow .row{grid-column:2;justify-self:end}
+.cardrow.editing{display:block;padding:10px}
+.cardrow.editing .row{justify-self:auto}
 .checks{border:0;padding:0;margin:0;display:flex;flex-direction:column;gap:6px}
 .checks legend{margin-bottom:6px}
 .check{display:flex;gap:10px;align-items:flex-start;font-weight:400;cursor:pointer}

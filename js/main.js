@@ -23,13 +23,13 @@ function render(){ renderHeader(); renderMain(); }
 function softRender(){
   renderHeader();
   const a = document.activeElement;
-  if (["upload","review"].includes(S.view)) return;
+  if (["upload","review"].includes(S.view) || S.cardEdit) return;
   if (S.view === "klausur" && ((S.exam && S.exam.stage !== "setup") || (S.duel && S.duel.stage === "play"))) return;
   if (a && /INPUT|TEXTAREA|SELECT/.test(a.tagName)) return;
   renderMain();
 }
 function renderStage(){ const el = $("#genStage"); if (el) el.textContent = S.upload.stage; }
-const go = (view, sel) => { S.view = view; if (sel) S.sel = {subject:null, doc:null, sheet:null, ...sel}; S.confirm = null; S.share = null; render(); scrollTo(0, 0); };
+const go = (view, sel) => { S.view = view; if (sel) S.sel = {subject:null, doc:null, sheet:null, ...sel}; S.confirm = null; S.share = null; S.cardEdit = null; render(); scrollTo(0, 0); };
 
 const ACT = {
   nav(v){ if (S.view === v && v === "faecher") S.sel = {subject:null, doc:null, sheet:null}; go(v); },
@@ -50,11 +50,17 @@ const ACT = {
   delDoc(id){ delete S.docs[id]; remove(id); S.sel.doc = null; S.confirm = null; toast("Dokument gelöscht"); render(); },
   delSubj(sid){
     for (const [id] of docsOf(sid)) { delete S.docs[id]; remove(id); }
-    S.profile.subjects = S.profile.subjects.filter(s => s.id !== sid); saveProfile();
+    S.profile.subjects = S.profile.subjects.filter(s => s.id !== sid); addTomb(S.profile.delSubjects, sid); saveProfile();
     toast("Fach gelöscht"); go("faecher", {});
   },
   delSheet(v){ const [sid, shid] = v.split("|"); const s = subj(sid); if (s) { s.sheets = arr(s.sheets).filter(x => x.id !== shid); saveProfile(); } go("faecher", {subject:sid}); },
-  delCard(v){ const [id, cid] = v.split("|"); const d = S.docs[id]; if (!d) return; d.cards = arr(d.cards).filter(c => c.id !== cid); save(id, d); renderMain(); },
+  delCard(v){ const [id, cid] = v.split("|"); deleteCard(id, cid); renderMain(); },
+  editCard(v){ S.cardEdit = v; renderMain(); $("#ecQ")?.focus(); },
+  cancelEdit(){ S.cardEdit = null; renderMain(); },
+  undo: undoGrade,
+  examOpen(v){ openExam(v); },
+  fsrsOpt: optimizeFsrs,
+  fsrsReset: resetFsrs,
   more(v){ moreCards(v); },
   mind(v){ makeMindmap(v); },
   gloss(v){ makeGlossary(v); },
@@ -87,7 +93,7 @@ const ACT = {
   duelLeave(){ stopDuelPoll(); clearInterval(duelTimer); S.duel = {stage:"menu", scope:S.duel?.scope || "all", n:S.duel?.n || 8, error:""}; renderMain(); },
   async duelShare(v){ if (navigator.share) { try { await navigator.share({title:"Quiz-Duell", text:"Spiel mit mir ein Quiz-Duell! Code: " + S.duel.id, url:v}); return; } catch {} } copyText(v); },
   editPrompt(v){ S.promptEdit = v || null; renderMain(); $("#prompts")?.scrollIntoView({block:"start"}); },
-  delPrompt(v){ const P = S.profile; P.prompts = P.prompts.filter(p => p.id !== v); if (P.activePromptId === v) P.activePromptId = P.prompts[0].id; S.promptEdit = null; saveProfile(); toast("Prompt gelöscht"); renderMain(); },
+  delPrompt(v){ const P = S.profile; P.prompts = P.prompts.filter(p => p.id !== v); addTomb(P.delPrompts, v); if (P.activePromptId === v) P.activePromptId = P.prompts[0].id; S.promptEdit = null; saveProfile(); toast("Prompt gelöscht"); renderMain(); },
   clearKey(){ settings.key = ""; toast("Schlüssel entfernt"); renderMain(); },
   syncNow(){ Sync.full().then(() => toast(Sync.state === "error" ? "Sync fehlgeschlagen" : "Synchronisiert")); },
   async logout(){ await Sync.client?.auth.signOut(); S.auth.msg = ""; toast("Abgemeldet"); render(); },
@@ -112,6 +118,13 @@ document.addEventListener("submit", async e => {
     if (kind === "cloze" && !/\{\{.+?\}\}/.test(q)) return toast("Markiere die Lücke mit doppelten geschweiften Klammern: {{so}}.");
     if (kind === "basic" && !a) return toast("Gib eine Antwort ein.");
     d.cards = [...arr(d.cards), newCard(q, a, kind)]; save(f.dataset.doc, d); toast("Karte hinzugefügt"); renderMain();
+  }
+  else if (id === "editCardForm") {
+    const kind = $("#ecKind").value, q = $("#ecQ").value.trim(), a = $("#ecA").value.trim();
+    if (!q) return;
+    if (kind === "cloze" && !/\{\{.+?\}\}/.test(q)) return toast("Markiere die Lücke mit doppelten geschweiften Klammern: {{so}}.");
+    if (kind === "basic" && !a) return toast("Gib eine Antwort ein.");
+    editCard(f.dataset.doc, f.dataset.card, {kind, q, a}); S.cardEdit = null; toast("Karte gespeichert"); renderMain();
   }
   else if (id === "resumForm") resummarize(f.dataset.doc, $("#resumPrompt").value);
   else if (id === "sheetForm") makeSheet(f.dataset.sid, [...f.querySelectorAll("input[type=checkbox]:checked")].map(x => x.value), $("#sheetPrompt").value);
@@ -173,6 +186,7 @@ document.addEventListener("input", e => {
   else if (t.id === "newSubjIn") S.upload.newSubject = t.value;
   else if (t.id === "impNew") S.importShare.newSubject = t.value;
   else if (t.id === "duelName") S.profile.prefs.displayName = t.value;
+  else if (t.id === "cardQ") { S.cardQ = t.value; const r = $("#searchRes"); if (r) { r.innerHTML = searchResults(t.value); renderMath(r); } }
   else if (/^qa\d+$/.test(t.id) && S.exam) S.exam.answers[Number(t.id.slice(2))] = t.value;
   else if (t.id === "glossQ") {
     S.glossQ = t.value; const q = t.value.toLowerCase();
@@ -187,6 +201,7 @@ document.addEventListener("keydown", e => {
   if (S.view !== "review" || !S.review || S.explain || /INPUT|TEXTAREA|SELECT/.test(e.target.tagName)) return;
   if ((e.key === " " || e.key === "Enter") && !S.review.shown) { e.preventDefault(); ACT.reveal(); }
   else if (S.review.shown && ["1","2","3","4"].includes(e.key)) grade(Number(e.key) - 1);
+  else if ((e.key === "z" || e.key === "Backspace") && arr(S.review.undo).length) { e.preventDefault(); undoGrade(); }
 });
 document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") { Sync.incremental(); if (S.view === "heute") renderMain(); } });
 addEventListener("online", () => { renderHeader(); Sync.incremental(); });
