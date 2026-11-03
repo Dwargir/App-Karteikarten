@@ -17,7 +17,7 @@ Supabase ist der kostenlose Server hinter Sync, Teilen per Link, Quiz-Duell und 
 ## 3. Anmeldung einstellen
 
 1. Links **Authentication → URL Configuration**.
-2. **Site URL**: `https://<dein-github-name>.github.io/semesterkartei/`
+2. **Site URL**: `https://dwargir.github.io/App-Karteikarten/`
 3. Unter **Redirect URLs** dieselbe Adresse hinzufügen.
 4. Optional, wenn nur du (und ausgewählte Freunde) die App nutzen sollen: **Authentication → Sign In / Providers → Email** und nach dem Anlegen eurer Konten **Allow new users to sign up** ausschalten.
 

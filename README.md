@@ -30,7 +30,7 @@ Lern-App für die Uni: Dokumente hochladen, und Claude erstellt daraus Karteikar
 
 ## Einrichtung
 
-1. **GitHub Pages:** Repository → Settings → Pages → Branch `main`, Ordner `/ (root)`. Die App läuft dann unter `https://<name>.github.io/semesterkartei/`.
+1. **GitHub Pages:** Repository → Settings → Pages → Branch `main`, Ordner `/ (root)`. Die App läuft dann unter `https://dwargir.github.io/App-Karteikarten/`.
 2. **Supabase** (Sync, Teilen, Duell, geschützter API-Schlüssel): Anleitung in [`docs/SUPABASE.md`](docs/SUPABASE.md).
 3. **Ohne Supabase** geht es auch: In den Einstellungen einen eigenen Anthropic-API-Schlüssel eintragen. Dann liegen die Daten nur im Browser, Teilen per Link und Duell sind aus.
 
