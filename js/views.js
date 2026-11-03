@@ -8,6 +8,7 @@ const cardQ = c => c.kind === "cloze" ? clozeHtml(c.q, false) : esc(c.q);
 const cardListQ = c => c.kind === "cloze" ? clozeHtml(c.q, true) : esc(c.q);
 const spin = '<span class="spinner" aria-hidden="true"></span>';
 const sel = (cond) => cond ? "selected" : "";
+const pdfBtn = (act, v, key, cls = "ghost") => `<button class="${cls} noprint" data-act="${act}" data-v="${esc(v)}" ${S.busy.pdf ? "disabled" : ""}>${S.busy.pdf === key ? spin + " PDF wird erstellt…" : "PDF herunterladen"}</button>`;
 
 function vLoading(){ return '<div class="panel row">' + spin + '<span>Deine Kartei wird geladen…</span></div>'; }
 function storeNotice(){ return S.store === "memory" ? '<div class="notice">Dein Browser erlaubt hier keine Speicherung (z. B. privater Modus). Deine Karten gehen beim Schließen verloren.</div>' : ""; }
@@ -131,7 +132,7 @@ function vSheet(sid, sh){
   const conf = S.confirm === "sheet:" + sh.id;
   return `<button class="ghost back noprint" data-act="openSubj" data-v="${esc(sid)}">← ${esc(subj(sid)?.name || "Fach")}</button>
     <div class="stack" style="gap:6px"><p class="eyebrow">${esc(subj(sid)?.name || "")} · ${sh.docIds.length} Dokumente</p><h1>${esc(sh.title)}</h1></div>
-    <div class="row noprint"><button data-act="print">Drucken / als PDF</button>${conf ? `<button class="danger" data-act="delSheet" data-v="${esc(sid)}|${esc(sh.id)}">Ja, löschen</button><button data-act="cancel">Abbrechen</button>` : `<button class="danger" data-act="confirm" data-v="sheet:${esc(sh.id)}">Löschen</button>`}</div>
+    <div class="row noprint">${pdfBtn("pdfSheet", sid + "|" + sh.id, "sheet:" + sh.id, "primary")}<button data-act="print">Drucken</button>${conf ? `<button class="danger" data-act="delSheet" data-v="${esc(sid)}|${esc(sh.id)}">Ja, löschen</button><button data-act="cancel">Abbrechen</button>` : `<button class="danger" data-act="confirm" data-v="sheet:${esc(sh.id)}">Löschen</button>`}</div>
     <article class="paper sheet md">${md(sh.md)}</article>`;
 }
 function mindNode(n, depth){
@@ -147,10 +148,10 @@ function vDoc(id){
   return `<button class="ghost back noprint" data-act="openSubj" data-v="${esc(d.subjectId)}">← ${esc(s?.name || "Fach")}</button>
     <div class="stack" style="gap:6px"><p class="eyebrow">${esc(d.fileName)} · ${fmtDate(d.createdAt)}${d.parts > 1 ? " · " + d.parts + " Teile" : ""}</p><h1>${esc(d.title)}</h1></div>
     ${arr(d.warnings).length ? `<div class="notice" role="status">${d.warnings.map(esc).join("<br>")}</div>` : ""}
-    <div class="actions noprint"><button class="primary" data-act="review" data-v="d:${esc(id)}" ${due || fresh ? "" : "disabled"}>Lernen (${due + Math.min(fresh, 15)})</button><button data-act="reviewAll" data-v="d:${esc(id)}">Alle ${cards.length} üben</button><button data-act="examFrom" data-v="d:${esc(id)}">Übungsklausur</button><button data-act="share" data-v="doc|${esc(id)}">${S.busy.share === id ? spin : ""}Teilen</button><button data-act="print">Drucken / PDF</button></div>
+    <div class="actions noprint"><button class="primary" data-act="review" data-v="d:${esc(id)}" ${due || fresh ? "" : "disabled"}>Lernen (${due + Math.min(fresh, 15)})</button><button data-act="reviewAll" data-v="d:${esc(id)}">Alle ${cards.length} üben</button><button data-act="examFrom" data-v="d:${esc(id)}">Übungsklausur</button><button data-act="share" data-v="doc|${esc(id)}">${S.busy.share === id ? spin : ""}Teilen</button><button data-act="print">Drucken</button></div>
     ${sharePanel(id)}
 
-    <section class="stack"><h2>Zusammenfassung</h2>
+    <section class="stack"><div class="row between"><h2>Zusammenfassung</h2>${sum && !sumBusy ? pdfBtn("pdfSum", id, "sum:" + id) : ""}</div>
       ${d.summaries.length > 1 ? `<div class="seg noprint" role="tablist">${d.summaries.map(x => `<button role="tab" aria-selected="${x.id === sum?.id}" class="${x.id === sum?.id ? "on" : ""}" data-act="pickSum" data-v="${esc(id)}|${esc(x.id)}">${esc(x.promptName)} <small>${fmtDate(x.createdAt)}</small></button>`).join("")}</div>` : ""}
       ${sumBusy ? `<div class="paper sheet md" id="sumLive">${S.busy.sum.text ? md(S.busy.sum.text) : '<p class="row">' + spin + " Claude schreibt die Zusammenfassung…</p>"}</div><button class="noprint" data-act="stopSum">Abbrechen</button>`
         : sum ? `<article class="paper sheet md">${md(sum.md)}</article>` : '<p class="muted">Noch keine Zusammenfassung.</p>'}

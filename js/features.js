@@ -784,6 +784,59 @@ async function finishDuel(){
   startDuelPoll();
 }
 
+/* ---------- PDF-Export (Zusammenfassung, Lernzettel) ----------
+   html2pdf.js wird erst beim ersten Klick geladen (ca. 900 KB) und danach vom Service Worker offline vorgehalten. */
+const HTML2PDF_URL = "https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js";
+function loadScript(src){
+  return new Promise((res, rej) => { const s = document.createElement("script"); s.src = src; s.onload = res; s.onerror = () => rej(new Error("load")); document.head.append(s); });
+}
+const pdfName = s => String(s || "Dokument").replace(/[\\/:*?"<>|]+/g, " ").replace(/\s+/g, " ").trim().slice(0, 80) || "Dokument";
+async function downloadPdf({key, kind, title, subtitle, mdText}){
+  if (S.busy.pdf) return;
+  S.busy.pdf = key; renderMain();
+  let host;
+  try {
+    if (!window.html2pdf) { try { await loadScript(HTML2PDF_URL); } catch {} }
+    if (!window.html2pdf) throw {code:"local", message:"Der PDF-Baustein konnte nicht geladen werden. Prüfe die Internetverbindung oder nutze „Drucken“ und dort „Als PDF sichern“."};
+    host = document.createElement("div"); host.className = "pdfhost";
+    host.innerHTML = `<article class="pdfdoc"><header><div class="pdfbrand">Semesterkartei · ${esc(kind)}</div><h1>${esc(title)}</h1><p>${esc(subtitle)}</p></header><div class="md">${md(mdText)}</div></article>`;
+    document.body.append(host);
+    renderMath(host);
+    // Überschrift immer mit dem folgenden Absatz zusammenhalten (keine einsame Überschrift am Seitenende)
+    for (const h of host.querySelectorAll(".md > h2, .md > h3, .md > h4")) {
+      const nx = h.nextElementSibling; if (!nx || /^H[2-4]$/.test(nx.tagName)) continue;
+      const w = document.createElement("div"); w.className = "keep"; h.before(w); w.append(h, nx);
+    }
+    try { await document.fonts?.ready; } catch {}
+    const footer = (kind + " · " + title).replace(/[^\x20-\xFF]/g, "").slice(0, 90);
+    await html2pdf().set({
+      margin:[14, 14, 16, 14], filename:pdfName(title.startsWith(kind) ? title : kind + " - " + title) + ".pdf",
+      image:{type:"jpeg", quality:0.92},
+      html2canvas:{scale:2, backgroundColor:"#ffffff", useCORS:true},
+      jsPDF:{unit:"mm", format:"a4", orientation:"portrait"},
+      pagebreak:{mode:["css", "legacy"], avoid:[".keep", "h2", "h3", "h4", "li", "p", ".katex-display"]}
+    }).from(host.firstElementChild).toPdf().get("pdf").then(pdf => {
+      const n = pdf.internal.getNumberOfPages();
+      for (let i = 1; i <= n; i++) { pdf.setPage(i); pdf.setFontSize(8); pdf.setTextColor(140); pdf.text(`${footer}   ·   Seite ${i} von ${n}`, 105, 289, {align:"center"}); }
+    }).save();
+    toast("PDF gespeichert");
+  } catch (e) { toast(errText(e)); }
+  host?.remove();
+  S.busy.pdf = null; renderMain();
+}
+function pdfSummary(docId){
+  const d = S.docs[docId]; if (!d) return;
+  const sum = d.summaries.find(x => x.id === d.activeSummary) || d.summaries[0];
+  if (!sum) return toast("Für dieses Dokument gibt es noch keine Zusammenfassung.");
+  const parts = [subj(d.subjectId)?.name, sum.promptName && "Masterprompt „" + sum.promptName + "“", new Date(sum.createdAt || Date.now()).toLocaleDateString("de-DE")].filter(Boolean);
+  downloadPdf({key:"sum:" + docId, kind:"Zusammenfassung", title:d.title, subtitle:parts.join(" · "), mdText:sum.md});
+}
+function pdfSheet(sid, shid){
+  const s = subj(sid), sh = arr(s?.sheets).find(x => x.id === shid); if (!sh) return;
+  const parts = [s.name, sh.docIds.length + (sh.docIds.length === 1 ? " Dokument" : " Dokumente"), new Date(sh.createdAt || Date.now()).toLocaleDateString("de-DE")];
+  downloadPdf({key:"sheet:" + shid, kind:"Lernzettel", title:sh.title, subtitle:parts.join(" · "), mdText:sh.md});
+}
+
 /* ---------- FSRS an den eigenen Lernverlauf anpassen ---------- */
 const fsrsUsable = () => FSRS.loss(FSRS.DEFAULT, FSRS.sequences(S.revlog.items)).n;
 async function optimizeFsrs(){

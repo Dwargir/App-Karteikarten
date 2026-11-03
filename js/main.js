@@ -72,6 +72,8 @@ const ACT = {
   stopSum(){ S.busy.sum?.ctl.abort(); },
   stopSheet(){ S.busy.sheet?.ctl.abort(); },
   print(){ window.print(); },
+  pdfSum(v){ pdfSummary(v); },
+  pdfSheet(v){ const [sid, shid] = v.split("|"); pdfSheet(sid, shid); },
   explain(v){ const [id, cid] = v.split("|"); openExplain(id, cid); },
   closeExplain(){ S.explain?.ctl?.abort(); S.explain = null; renderSheet(); },
   chatQuick(v){ sendExplain(v); },

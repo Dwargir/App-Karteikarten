@@ -294,6 +294,22 @@ nav.tabs button.add.on{color:var(--accent)}
 .msg.assistant{align-self:flex-start;background:var(--surface);border:1px solid var(--line);border-bottom-left-radius:6px}
 body.sheet-open{overflow:hidden}
 
+/* ---------- PDF-Export: immer helle Farben, A4-Breite ---------- */
+.pdfhost{position:fixed;left:-10000px;top:0;width:700px;pointer-events:none}
+.pdfdoc{--ink:#1B1F27;--muted:#5F6672;--line:#E3E0D8;--line-strong:#CFCBC1;--surface-2:#F1F0EB;--accent:#3651D4;--accent-soft:#E9EDFC;
+  width:700px;background:#fff;color:#1B1F27;font-family:var(--body);font-size:15px;line-height:1.55;padding:2px 2px 8px}
+.pdfdoc header{border-bottom:2px solid #C8414E;padding-bottom:12px;margin-bottom:18px}
+.pdfbrand{font-size:11.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#3651D4}
+.pdfdoc h1{font-size:26px;margin:4px 0;color:#1B1F27}
+.pdfdoc header p{color:#5F6672;font-size:13px}
+.pdfdoc .md{display:block}
+.pdfdoc .md>*{margin:0 0 9px}
+.pdfdoc .md h2,.pdfdoc .md h3,.pdfdoc .md h4{margin-top:16px}
+.pdfdoc .md ul,.pdfdoc .md ol{display:block}
+.pdfdoc .md li{margin-bottom:4px}
+.pdfdoc .md .keep>*{margin:0 0 9px}
+.pdfdoc .md .keep>h2,.pdfdoc .md .keep>h3,.pdfdoc .md .keep>h4{margin-top:16px}
+
 /* ---------- Kleine Bildschirme, Bewegung, Druck ---------- */
 @media (max-width:420px){h1{font-size:27px}.hero .big{font-size:52px}.fc .qtext{font-size:21px}.duelopts{grid-template-columns:1fr}.code{font-size:34px}.statrow{gap:8px}.stat b{font-size:23px}}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}

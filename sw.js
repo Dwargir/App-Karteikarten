@@ -1,6 +1,6 @@
 /* Service Worker: App offline verfügbar machen.
    Bei Änderungen an den App-Dateien VERSION erhöhen, damit Nutzer die neue Version bekommen. */
-const VERSION = "sk-v2.2.0";
+const VERSION = "sk-v2.3.0";
 const APP = ["./", "index.html", "style.css", "config.js", "js/core.js", "js/features.js", "js/views.js", "js/main.js", "manifest.webmanifest", "icons/icon-192.png", "icons/apple-touch-icon.png"];
 const CDN = /^(https:\/\/cdnjs\.cloudflare\.com|https:\/\/cdn\.jsdelivr\.net|https:\/\/fonts\.(googleapis|gstatic)\.com)/;
 
