@@ -53,9 +53,9 @@ function vHeute(){
   const recent = Object.entries(S.docs).sort((a, b) => b[1].createdAt - a[1].createdAt).slice(0, 4);
   return storeNotice() + `
     <div><p class="eyebrow">${esc(dateStr)}</p><h1>${todo ? "Heute stehen Karten an" : "Für heute alles gelernt"}</h1></div>
-    <div class="paper hero">
-      <div class="row between" style="height:20px"><span class="eyebrow">Heute im Plan</span><span class="eyebrow num">${st.todayN} gelernt</span></div>
-      <div class="row between" style="align-items:flex-end;margin-top:14px">
+    <div class="paper hero hero-main">
+      <div class="row between"><span class="eyebrow">Heute im Plan</span><span class="eyebrow num">${st.todayN} gelernt</span></div>
+      <div class="row between" style="align-items:flex-end">
         <div><div class="big num">${todo}</div><p class="muted">${pt.due} Wiederholungen · ${pt.fresh} neue Karten</p></div>
         <button class="primary" data-act="review" data-v="all" ${todo ? "" : "disabled"}>Jetzt lernen</button>
       </div>
@@ -101,7 +101,7 @@ function vSubject(sid){
   const sheetBusy = S.busy.sheet && S.busy.sheet.sid === sid;
   return `<button class="ghost back noprint" data-act="back">← Alle Fächer</button>
     <div class="row nowrap">${subjDot(s)}<h1 style="min-width:0;overflow-wrap:anywhere">${esc(s.name)}</h1></div>
-    <div class="row noprint"><button class="primary" data-act="review" data-v="s:${esc(sid)}" ${due || plan?.quota ? "" : "disabled"}>Lernen (${due + (plan?.quota || 0)})</button><button data-act="reviewAll" data-v="s:${esc(sid)}" ${cards.length ? "" : "disabled"}>Alle üben</button><button data-act="examFrom" data-v="s:${esc(sid)}" ${docs.length ? "" : "disabled"}>Übungsklausur</button><button data-act="share" data-v="subj|${esc(sid)}" ${docs.length ? "" : "disabled"}>${S.busy.share === sid ? spin : ""}Teilen</button></div>
+    <div class="actions noprint"><button class="primary" data-act="review" data-v="s:${esc(sid)}" ${due || plan?.quota ? "" : "disabled"}>Lernen (${due + (plan?.quota || 0)})</button><button data-act="reviewAll" data-v="s:${esc(sid)}" ${cards.length ? "" : "disabled"}>Alle üben</button><button data-act="examFrom" data-v="s:${esc(sid)}" ${docs.length ? "" : "disabled"}>Übungsklausur</button><button data-act="share" data-v="subj|${esc(sid)}" ${docs.length ? "" : "disabled"}>${S.busy.share === sid ? spin : ""}Teilen</button></div>
     ${sharePanel(sid)}
     <div class="panel stack"><label class="f" for="examDate">Prüfungstermin</label><input type="date" id="examDate" data-sid="${esc(sid)}" value="${esc(s.examDate || "")}">
       <p class="muted small">${left >= 0 ? `Noch ${left} Tage. ${plan.fresh} Karten sind noch neu. Der Plan führt täglich ${plan.perDay} neue ein, sodass du die letzten zwei Tage nur wiederholst.` : `Ohne Termin lernst du bis zu ${S.profile.prefs.newPerDay} neue Karten pro Tag (über alle Fächer, änderbar in den Einstellungen).`}</p></div>
@@ -109,8 +109,8 @@ function vSubject(sid){
     ${docs.length ? `<div class="list">${docs.map(([id, d]) => docItem(id, d)).join("")}</div>` : '<div class="panel"><p class="muted">Noch keine Dokumente in diesem Fach.</p></div>'}</section>
 
     ${docs.length ? `<section class="stack"><h2>Klausur-Lernzettel</h2>
-      ${arr(s.sheets).length ? `<div class="list">${s.sheets.map(x => `<button class="item" data-act="openSheet" data-v="${esc(x.id)}"><span class="grow"><span class="t">${esc(x.title)}</span><br><span class="s">${x.docIds.length} Dokumente${x.promptName ? " · " + esc(x.promptName) : ""}</span></span><span aria-hidden="true">›</span></button>`).join("")}</div>` : ""}
-      ${sheetBusy ? `<div class="paper hero"><div class="row" style="height:20px"><span class="eyebrow">Lernzettel entsteht</span></div><div class="md" id="sheetLive" style="margin-top:14px">${S.busy.sheet.text ? md(S.busy.sheet.text) : '<p class="row">' + spin + " Claude fasst deine Dokumente zusammen…</p>"}</div><button data-act="stopSheet">Abbrechen</button></div>` : `
+      ${arr(s.sheets).length ? `<div class="list">${s.sheets.map(x => `<button class="item" data-act="openSheet" data-v="${esc(x.id)}"><span class="grow"><span class="t">${esc(x.title)}</span><br><span class="s">${x.docIds.length} Dokumente${x.promptName ? " · " + esc(x.promptName) : ""}</span></span></button>`).join("")}</div>` : ""}
+      ${sheetBusy ? `<div class="paper hero"><div class="row"><span class="eyebrow">Lernzettel entsteht</span></div><div class="md" id="sheetLive">${S.busy.sheet.text ? md(S.busy.sheet.text) : '<p class="row">' + spin + " Claude fasst deine Dokumente zusammen…</p>"}</div><button data-act="stopSheet">Abbrechen</button></div>` : `
       <form id="sheetForm" data-sid="${esc(sid)}" class="panel stack noprint"><p class="muted small">Fasst mehrere Dokumente zu einem gegliederten Lernzettel zusammen.</p>
         <fieldset class="checks"><legend class="f">Dokumente</legend>${docs.map(([id, d]) => `<label class="check" for="sh-${esc(id)}"><input type="checkbox" id="sh-${esc(id)}" value="${esc(id)}" checked><span>${esc(d.title)}</span></label>`).join("")}</fieldset>
         <label class="f" for="sheetPrompt">Masterprompt (optional)<select id="sheetPrompt"><option value="">Keiner</option>${S.profile.prompts.map(p => `<option value="${esc(p.id)}">${esc(p.name)}</option>`).join("")}</select></label>
@@ -147,7 +147,7 @@ function vDoc(id){
   return `<button class="ghost back noprint" data-act="openSubj" data-v="${esc(d.subjectId)}">← ${esc(s?.name || "Fach")}</button>
     <div class="stack" style="gap:6px"><p class="eyebrow">${esc(d.fileName)} · ${fmtDate(d.createdAt)}${d.parts > 1 ? " · " + d.parts + " Teile" : ""}</p><h1>${esc(d.title)}</h1></div>
     ${arr(d.warnings).length ? `<div class="notice" role="status">${d.warnings.map(esc).join("<br>")}</div>` : ""}
-    <div class="row noprint"><button class="primary" data-act="review" data-v="d:${esc(id)}" ${due || fresh ? "" : "disabled"}>Lernen (${due + Math.min(fresh, 15)})</button><button data-act="reviewAll" data-v="d:${esc(id)}">Alle ${cards.length} üben</button><button data-act="examFrom" data-v="d:${esc(id)}">Übungsklausur</button><button data-act="share" data-v="doc|${esc(id)}">${S.busy.share === id ? spin : ""}Teilen</button><button data-act="print">Drucken / PDF</button></div>
+    <div class="actions noprint"><button class="primary" data-act="review" data-v="d:${esc(id)}" ${due || fresh ? "" : "disabled"}>Lernen (${due + Math.min(fresh, 15)})</button><button data-act="reviewAll" data-v="d:${esc(id)}">Alle ${cards.length} üben</button><button data-act="examFrom" data-v="d:${esc(id)}">Übungsklausur</button><button data-act="share" data-v="doc|${esc(id)}">${S.busy.share === id ? spin : ""}Teilen</button><button data-act="print">Drucken / PDF</button></div>
     ${sharePanel(id)}
 
     <section class="stack"><h2>Zusammenfassung</h2>
@@ -183,8 +183,8 @@ function vUpload(){
   const s = U.subjectId || subs[0]?.id || "__new", showNew = !subs.length || s === "__new";
   const pid = U.promptId || S.profile.activePromptId;
   if (U.busy) return `<div><p class="eyebrow">Neues Material</p><h1>Karteikarten entstehen</h1></div>
-    <div class="paper hero"><div class="row" style="height:20px"><span class="eyebrow">${esc(U.files[0]?.name || "Eingefügter Text")}</span></div>
-    <div class="row nowrap" style="margin-top:14px">${spin}<span id="genStage">${esc(U.stage)}</span></div>
+    <div class="paper hero"><div class="row"><span class="eyebrow">${esc(U.files[0]?.name || "Eingefügter Text")}</span></div>
+    <div class="row nowrap">${spin}<span id="genStage">${esc(U.stage)}</span></div>
     <p class="muted">Bei langen Skripten kann das ein bis zwei Minuten dauern.</p><button data-act="genStop">Abbrechen</button></div>`;
   return `<div><p class="eyebrow">Neues Material</p><h1>Dokument hochladen</h1></div>
     ${aiNotice()}
@@ -256,10 +256,10 @@ function vExam(tabs){
     </div>
     ${arr(S.profile.exams).length ? `<section class="stack"><h2>Letzte Ergebnisse</h2><div class="list">${S.profile.exams.slice(0, 8).map(examItem).join("")}</div></section>` : ""}`;
   if (E.stage === "loading" || E.stage === "grading") return `<div><p class="eyebrow">${esc(scopeLabel(E.scope))}</p><h1>${E.stage === "loading" ? "Klausur wird erstellt" : "Antworten werden korrigiert"}</h1></div>
-    <div class="paper hero"><div class="row" style="height:20px"><span class="eyebrow">Bitte warten</span></div><div class="row nowrap" style="margin-top:14px">${spin}<span>${E.stage === "loading" ? "Claude stellt " + E.n + " Aufgaben aus deinem Material zusammen…" : "Claude vergleicht deine Antworten mit den Musterlösungen…"}</span></div><button data-act="examStop">Abbrechen</button></div>`;
+    <div class="paper hero"><div class="row"><span class="eyebrow">Bitte warten</span></div><div class="row nowrap">${spin}<span>${E.stage === "loading" ? "Claude stellt " + E.n + " Aufgaben aus deinem Material zusammen…" : "Claude vergleicht deine Antworten mit den Musterlösungen…"}</span></div><button data-act="examStop">Abbrechen</button></div>`;
   const done = E.stage === "done", max = E.questions.reduce((s, q) => s + q.points, 0);
   return `<div class="row between"><button class="ghost back" data-act="examNew">← Neue Klausur</button><span class="eyebrow">${esc(scopeLabel(E.scope))}</span></div>
-    ${done ? `<div class="paper hero"><div class="row" style="height:20px"><span class="eyebrow">${E.past ? "Ergebnis vom " + fmtDate(E.past) : "Ergebnis"}</span></div><div class="row between" style="align-items:flex-end;margin-top:14px"><div><div class="score num">${E.pct} %</div><p class="muted num">${E.results.reduce((s, r) => s + r.score, 0).toLocaleString("de-DE")} von ${max} Punkten</p></div><span class="pill ${E.pct >= 50 ? "" : "due"}">${E.pct >= 85 ? "Sehr gut" : E.pct >= 65 ? "Gut" : E.pct >= 50 ? "Bestanden" : "Noch üben"}</span></div></div>` : `<h1>${E.questions.length} Aufgaben</h1>`}
+    ${done ? `<div class="paper hero"><div class="row"><span class="eyebrow">${E.past ? "Ergebnis vom " + fmtDate(E.past) : "Ergebnis"}</span></div><div class="row between" style="align-items:flex-end"><div><div class="score num">${E.pct} %</div><p class="muted num">${E.results.reduce((s, r) => s + r.score, 0).toLocaleString("de-DE")} von ${max} Punkten</p></div><span class="pill ${E.pct >= 50 ? "" : "due"}">${E.pct >= 85 ? "Sehr gut" : E.pct >= 65 ? "Gut" : E.pct >= 50 ? "Bestanden" : "Noch üben"}</span></div></div>` : `<h1>${E.questions.length} Aufgaben</h1>`}
     <div class="list">${E.questions.map((q, i) => {
       const r = done ? E.results[i] : null;
       const head = `<div class="row between nowrap" style="align-items:flex-start"><b style="min-width:0;overflow-wrap:anywhere">${i + 1}. ${esc(q.q)}</b><span class="pill num">${done ? r.score.toLocaleString("de-DE") + "/" : ""}${q.points} P</span></div>`;
@@ -289,12 +289,12 @@ function vDuel(tabs){
       <label class="f" for="duN">Fragen<select id="duN">${[5,8,12].map(n => `<option ${sel(n === D.n)}>${n}</option>`).join("")}</select></label>
       <button class="primary" data-act="duelCreate" ${Object.keys(S.docs).length ? "" : "disabled"}>Duell erstellen</button>
       <p class="muted small">Alle spielen dieselben Fragen mit 20 Sekunden pro Frage. Schnelle richtige Antworten bringen mehr Punkte.</p></div>`;
-  if (D.stage === "creating") return head + `<div class="paper hero"><div class="row" style="height:20px"><span class="eyebrow">Bitte warten</span></div><div class="row nowrap" style="margin-top:14px">${spin}<span>Claude stellt ${D.n} Duell-Fragen zusammen…</span></div></div>`;
+  if (D.stage === "creating") return head + `<div class="paper hero"><div class="row"><span class="eyebrow">Bitte warten</span></div><div class="row nowrap">${spin}<span>Claude stellt ${D.n} Duell-Fragen zusammen…</span></div></div>`;
   const link = location.origin + location.pathname + "?d=" + D.id;
   if (D.stage === "lobby") {
     const played = arr(D.players).some(p => p.user_id === Sync.uid && p.finished);
-    return head + `<div class="paper hero"><div class="row between" style="height:20px"><span class="eyebrow">Duell-Code</span><span class="eyebrow">${esc(D.data.title)} · ${D.data.questions.length} Fragen</span></div>
-      <div class="code num" style="margin-top:14px">${esc(D.id)}</div>
+    return head + `<div class="paper hero"><div class="row between"><span class="eyebrow">Duell-Code</span><span class="eyebrow">${esc(D.data.title)} · ${D.data.questions.length} Fragen</span></div>
+      <div class="code num">${esc(D.id)}</div>
       <div class="row"><button data-act="copy" data-v="${esc(link)}">Link kopieren</button><button data-act="duelShare" data-v="${esc(link)}">Teilen</button></div></div>
       ${played ? "" : `<div class="panel stack">${nameField}<button class="primary" data-act="duelPlay">Jetzt spielen</button></div>`}
       <section class="stack"><h2>Rangliste</h2>${leaderboard(D)}</section><button class="ghost" data-act="duelLeave">Anderes Duell</button>`;
@@ -306,7 +306,7 @@ function vDuel(tabs){
       <div class="paper fc static"><span class="head"><span class="eyebrow">${esc(D.data.title)}</span></span><span class="qtext">${esc(q.q)}</span></div>
       <div class="duelopts">${q.options.map((o, j) => `<button class="${P.picked === null ? "" : j === q.correct ? "right" : j === P.picked ? "wrong" : "dim"}" data-act="duelAnswer" data-v="${j}" ${P.picked === null ? "" : "disabled"}>${esc(o)}</button>`).join("")}</div>`;
   }
-  return head + `<div class="paper hero"><div class="row" style="height:20px"><span class="eyebrow">Dein Ergebnis</span></div><div class="row between" style="align-items:flex-end;margin-top:14px"><div><div class="score num">${D.play.score}</div><p class="muted">${D.play.correct} von ${D.data.questions.length} richtig</p></div></div></div>
+  return head + `<div class="paper hero"><div class="row"><span class="eyebrow">Dein Ergebnis</span></div><div class="row between" style="align-items:flex-end"><div><div class="score num">${D.play.score}</div><p class="muted">${D.play.correct} von ${D.data.questions.length} richtig</p></div></div></div>
     <section class="stack"><h2>Rangliste</h2>${leaderboard(D)}</section><div class="row"><button data-act="copy" data-v="${esc(link)}">Link zum Duell kopieren</button><button class="ghost" data-act="duelLeave">Anderes Duell</button></div>`;
 }
 
@@ -416,7 +416,7 @@ function vImport(){
   if (I.error) return `<div><h1>Link nicht verfügbar</h1></div><div class="notice bad">${esc(I.error)}</div><button data-act="nav" data-v="heute">Zur Startseite</button>`;
   const deck = I.data.deck, docs = arr(deck.docs), n = docs.reduce((a, d) => a + arr(d.cards).length, 0), subs = S.profile.subjects;
   return `<div><p class="eyebrow">Geteilt mit dir</p><h1>${esc(I.data.title)}</h1></div>
-    <div class="paper hero"><div class="row" style="height:20px"><span class="eyebrow">${docs.length} ${docs.length === 1 ? "Dokument" : "Dokumente"}</span></div><div style="margin-top:14px"><div class="big num">${n}</div><p class="muted">Karteikarten mit Zusammenfassungen</p></div></div>
+    <div class="paper hero"><div class="row"><span class="eyebrow">${docs.length} ${docs.length === 1 ? "Dokument" : "Dokumente"}</span></div><div><div class="big num">${n}</div><p class="muted">Karteikarten mit Zusammenfassungen</p></div></div>
     <div class="list">${docs.map(d => `<div class="item"><span class="grow"><span class="t">${esc(d.title)}</span><br><span class="s">${arr(d.cards).length} Karten</span></span></div>`).join("")}</div>
     <div class="panel stack"><label class="f" for="impSubj">In welches Fach?<select id="impSubj">${subs.map(s => `<option value="${esc(s.id)}" ${sel(I.subjectId === s.id)}>${esc(s.name)}</option>`).join("")}<option value="__new" ${sel(I.subjectId === "__new")}>+ Neues Fach…</option></select></label>
       ${I.subjectId === "__new" ? `<label class="f" for="impNew">Name<input id="impNew" maxlength="60" value="${esc(I.newSubject)}"></label>` : ""}
